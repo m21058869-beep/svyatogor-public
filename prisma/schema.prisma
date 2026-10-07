@@ -1,0 +1,99 @@
+// Схема повторяет таблицы из бывших миграций Supabase (supabase/migrations).
+// Имена полей совпадают с именами колонок (snake_case), чтобы API отдавал
+// данные в том же формате, что и раньше отдавал Supabase.
+//
+// Единственное отличие: в admin_users добавлена колонка password_hash,
+// а id больше не ссылается на auth.users (собственная авторизация вместо Supabase Auth).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../server/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model SiteContent {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  page       String
+  section    String
+  content    Json      @default("{}")
+  updated_at DateTime? @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([page, section])
+  @@map("site_content")
+}
+
+model BlogPost {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  slug        String     @unique
+  excerpt     String?    @default("")
+  content     String
+  cover_image String?
+  published   Boolean?   @default(false)
+  author_id   String?    @db.Uuid
+  author      AdminUser? @relation(fields: [author_id], references: [id], onDelete: SetNull)
+  created_at  DateTime?  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@map("blog_posts")
+}
+
+model GalleryPhoto {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title         String
+  description   String?    @default("")
+  image_url     String
+  thumbnail_url String?
+  category      String?    @default("general")
+  uploaded_by   String?    @db.Uuid
+  uploader      AdminUser? @relation(fields: [uploaded_by], references: [id], onDelete: SetNull)
+  created_at    DateTime?  @default(now()) @db.Timestamptz(6)
+
+  @@map("gallery_photos")
+}
+
+model AdminUser {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String         @unique
+  full_name     String?
+  role          String?        @default("admin")
+  password_hash String
+  created_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  blog_posts    BlogPost[]
+  photos        GalleryPhoto[]
+
+  @@map("admin_users")
+}
+
+model SectionTitle {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  page       String
+  section    String
+  title      String
+  subtitle   String?
+  updated_at DateTime? @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([page, section])
+  @@map("section_titles")
+}
+
+/// Карточка игрока для публичного раздела «Состав» и админ-панели.
+/// sort_order задаёт порядок вывода (меньше — раньше), админ меняет его вручную.
+model Player {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  number     Int?
+  position   String?   @default("")
+  bio        String?   @default("")
+  photo_url  String?
+  sort_order Int       @default(0)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@map("players")
+}
